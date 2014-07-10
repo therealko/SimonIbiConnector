@@ -1,14 +1,13 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
@@ -23,14 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.http.*;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-
-import com.sun.net.httpserver.*;
+import com.sun.net.httpserver.HttpServer;
 
 public class IbiConnector
 {
@@ -64,13 +56,23 @@ public class IbiConnector
 		private String requestId_ = "";
 		private String dialogId_ = "";
 		
+		private boolean registered_;
+		
 		public enum CMD_CODE {
+			//provided Methods from Simon
 			REGISTERMODALITY(10),
 			GETMODALITYSTATUS(11),
 			HANDLEMODALITYACTION(12),
+			
+			//provided Methods from IBI
 			STARTRECOGNITION(13),
 			CANCELRECOGNITION(14),
 			GETSTATUS(15),
+			
+			//status or check codes
+			EVERYTHINGISALLRIGHT(50),
+			
+			//http codes
 			OKAY(200),
 			BADREQUEST(400);
 			
@@ -91,6 +93,7 @@ public class IbiConnector
 			ibiPort_ = ibiPort;
 			simonIp_ = simonIp;
 			simonPort_ = simonPort;
+			registered_ = false;
 			
 			this.iohandler_ = new IoHandler();
 			if(initConnection() == -1)
@@ -113,15 +116,15 @@ public class IbiConnector
 				server_.start();
 				System.out.println("Server is started");
 				
-				socket_ = new Socket(ibiHost_, ibiPort_);
+//				socket_ = new Socket(ibiHost_, ibiPort_);
 				
-				System.out.println(socket_.getPort());
-				System.out.println(socket_.getInetAddress());
-				System.out.println(socket_.getLocalAddress());
-				System.out.println(socket_.getLocalPort());
-				
-				writer_ = new BufferedWriter(new OutputStreamWriter(socket_.getOutputStream(), "UTF-8"));
-				reader_ = new BufferedReader(new InputStreamReader(socket_.getInputStream(), "UTF-8"));
+//				System.out.println(socket_.getPort());
+//				System.out.println(socket_.getInetAddress());
+//				System.out.println(socket_.getLocalAddress());
+//				System.out.println(socket_.getLocalPort());
+//				
+//				writer_ = new BufferedWriter(new OutputStreamWriter(socket_.getOutputStream(), "UTF-8"));
+//				reader_ = new BufferedReader(new InputStreamReader(socket_.getInputStream(), "UTF-8"));
 				
 				startGetModalityStatusThread();
 				
@@ -145,24 +148,26 @@ public class IbiConnector
 		//TODO Path unterscheidung wie handleModalityAction/registerModality/getModalityStatus
 		public int sendRequest(String path, String parameters)
 		{
+			
+			URL url;
+	    HttpURLConnection connection = null; 
+	    
 			try {
 				System.out.println("sending a request: ");
 				String data = "";
+
 				
-				System.out.println("socket informations:");
-				System.out.println("connected?: " + socket_.isConnected() +"\nClosed?: " + socket_.isClosed() + "\nbound?: " + socket_.isBound());
-	      System.out.println("socketAddress: " + socket_.getInetAddress());
-			
-	     // writer_ = new BufferedWriter(new OutputStreamWriter(socket_.getOutputStream(), "UTF8"));
-	      
-				//startRecognition just for tests
+//				System.out.println("socket informations:");
+//				System.out.println("connected?: " + socket_.isConnected() +"\nClosed?: " + socket_.isClosed() + "\nbound?: " + socket_.isBound());
+//	      System.out.println("socketAddress: " + socket_.getInetAddress());
+
+				//just for tests
 				if(path.equals("/startRecognition")) {
 					data = URLEncoder.encode("requestID", "UTF-8") + "=" + URLEncoder.encode("abcd-efgh", "UTF-8") + "&" +
 							URLEncoder.encode("dialogID", "UTF-8") + "=" + URLEncoder.encode("1234", "UTF-8") + "&" +
 							URLEncoder.encode("modalityID", "UTF-8") + "=" + URLEncoder.encode("5", "UTF-8") + "&" +
 							URLEncoder.encode("data", "UTF-8") + "=" + URLEncoder.encode("{\"options\":[\"eins\",\"zwei\"]}", "UTF-8");
-				//requestID=1234&dialogID=3337&ModalityID=5&data={\"options\":[\"eins\",\"zwei\"]}\n
-					
+
 				} else if(path.equals("/handleModalityAction")) {
 					System.out.println("#### handleModalityAction! ####\n");
 					data = "command=eins";
@@ -170,52 +175,144 @@ public class IbiConnector
 				} else if(path.equals("/registerModality")) {
 					System.out.println("#### registerModality! ####\n");
 					
-					data = URLEncoder.encode("\"params\"", "UTF-8") + "=" + 
+					data = URLEncoder.encode("params", "UTF-8") + "=" + 
 					URLEncoder.encode("{\"name\"", "UTF-8") + 		":" + URLEncoder.encode("\"simonListensClient\"", "UTF-8") + "," +
 					URLEncoder.encode("\"direction\"", "UTF-8") + ":" + URLEncoder.encode("\"input\"", "UTF-8") + "," +
 					URLEncoder.encode("\"type\"", "UTF-8") + 			":" + URLEncoder.encode("\"vocal\"", "UTF-8") + "," + 
 					URLEncoder.encode("\"port\"", "UTF-8") + 			":" + URLEncoder.encode(Integer.toString(simonPort_) + "}", "UTF-8");
-					
-					//System.out.println(data);
-					//System.out.println("params=%7B%22name%22:%22simonListensClient%22,%22direction%22:%22input%22,%22type%22:%22vocal%22,%22port%22:0%7D");
 
-					System.out.println("registerModality params: " + data);
+					System.out.println("registerModality params: " + data);  
 					
-					
-		      writer_.write("POST " + path + "?" + data + " HTTP/1.1\r\n");
-		      writer_.write("Host: " + simonIp_ + ":" + simonPort_ + "\r\n");
-		      writer_.write("Content-Length: " + data.length() + "\r\n");
-		      writer_.write("Content-Type: application/x-www-form-urlencoded\r\n");
-//		      System.out.println(data);
-		      writer_.write("\r\n");     
-		     // writer.write(data);
-					
-		      
-		      
+					 url = new URL("http://" + ibiHost_ + ":" + ibiPort_ + path );
+				    System.out.println("url: " + url.toString());
+			      connection = (HttpURLConnection)url.openConnection();
+			      connection.setRequestMethod("POST");
+			      connection.setRequestProperty("Content-Type", 
+			           "application/x-www-form-urlencoded");
+						
+			      connection.setRequestProperty("Content-Length", "" + 
+			               Integer.toString(data.getBytes().length));
+			      connection.setRequestProperty("Content-Language", "en-US");  
+						
+			      connection.setUseCaches (false);
+			      connection.setDoInput(true);
+			      connection.setDoOutput(true);
+
+			      //Send request
+			      DataOutputStream wr = new DataOutputStream (
+			                  connection.getOutputStream ());
+			      wr.writeBytes(data);
+			      wr.flush ();
+			      wr.close ();
+
 				} else if(path.equals("/getModalityStatus")) {
-					System.out.println("#### getModalityStatus! ####\n");
+					System.out.println("#### getModalityStatus! ####\n\tModalityID: " + modalityId_);
 					data = URLEncoder.encode("params", "UTF-8") + "=" + URLEncoder.encode("{\"modalityId\"", "UTF-8") + ":" +
-					URLEncoder.encode("\"" + Integer.toString(modalityId_)+"\"}", "UTF-8");
-				
-		      writer_.write("POST " + path + "?" + data + " HTTP/1.1\r\n");
-		      writer_.write("Host: " + simonIp_ + ":" + simonPort_ + "\r\n");
-//		      writer.write("Content-Length: " + data.length() + "\r\n");
-		      writer_.write("Content-Type: application/x-www-form-urlencoded\r\n");
-		      writer_.write("\r\n");     
+					URLEncoder.encode(Integer.toString(modalityId_) + "}", "UTF-8");
+					
+			    url = new URL("http://" + ibiHost_ + ":" + ibiPort_ + path );
+			    System.out.println("url: " + url.toString());
+		      connection = (HttpURLConnection)url.openConnection();
+		      connection.setRequestMethod("POST");
+		      connection.setRequestProperty("Content-Type", 
+		           "application/x-www-form-urlencoded");
+					
+		      connection.setRequestProperty("Content-Length", "" + 
+		               Integer.toString(data.getBytes().length));
+		      connection.setRequestProperty("Content-Language", "en-US");  
+					
+		      connection.setUseCaches (false);
+		      connection.setDoInput(true);
+		      connection.setDoOutput(true);
+	
+		      //Send request
+		      DataOutputStream wr = new DataOutputStream (
+		                  connection.getOutputStream ());
+		      wr.writeBytes(data);
+		      wr.flush ();
+		      wr.close ();
 				}
-
-				writer_.flush();
 				
 				System.out.println("Sending done, waiting for an answer!");
-//				writer.close();
-//				reader.close();
-				
+	      System.out.println("try to read the response");
+	      //Get Response	
+	      InputStream is = connection.getInputStream();
+	      BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+	      String line;
+	      StringBuffer response = new StringBuffer(); 
 	      
-				System.out.println("test123");
+	      while((line = rd.readLine()) != null) {
+	        response.append(line);
+	        response.append('\r');
+	      }
+	      rd.close();
+	      System.out.println("Response: " + response.toString());
 	      
-				
-				//TODO thread für das einlesen
-	      String line = "";
+	      String body = response.toString();
+	      String[] bodylist;
+	      
+	      if(path == "/getModalityStatus")
+	      {
+	      	//filter status:ok bzw status:nok
+	      	
+	      	body = body.replace("\"", "");
+	      	//bodylist = body.split(",");
+	      	
+	      	if(body.contains("status:ok")) {
+	      		return CMD_CODE.EVERYTHINGISALLRIGHT.getCode();
+	      	}
+	      	else if(body.contains("status:nok")) {
+	      		return CMD_CODE.REGISTERMODALITY.getCode();
+	      	}
+	      	else {
+	      		System.out.println("something is wrong with the getModalityStatus Response.");
+	      		//new getModalityStatus in 30sec
+	      		return CMD_CODE.GETMODALITYSTATUS.getCode();
+	      	}
+
+	      } else if (path == "/registerModality") {
+	      	
+	      	body = body.replace("\"", "");
+	      	
+	      	System.out.println("body: " + body);
+	      	if(body.contains("status:ok")) {
+	      		bodylist = body.split(",");
+	      		
+	      		for(int i = 0; i< bodylist.length; i++)
+	      		{
+	      			String[] tmp = bodylist[i].split(":");
+	      			System.out.println("part: " + tmp[0]);
+	      			if((tmp.length == 2) && (tmp[0].equals("modalityId"))) {
+	      				modalityId_ = Integer.parseInt(tmp[1]);
+	      				System.out.println("new ModalityID is #" + modalityId_);
+	      			}
+	      			
+	      		}
+	      			
+	      		
+	      		return CMD_CODE.EVERYTHINGISALLRIGHT.getCode();
+	      	}
+	      	else if(body.contains("status:nok")) {
+	      		return CMD_CODE.REGISTERMODALITY.getCode();
+	      	}
+	      	else {
+	      		System.out.println("something is wrong with the getModalityStatus Response.");
+	      		return CMD_CODE.GETMODALITYSTATUS.getCode();
+	      	}
+
+	      	
+	      }
+	      
+	      
+	      
+	      
+	      
+	      
+	      return 0;
+	      
+	      
+	      /*
+	       *  String line = "";
 	      String header = "";
 	      String body = "";
 	      boolean bodyBegin = false;
@@ -309,16 +406,21 @@ public class IbiConnector
 	      int status = checkInput(path, header, body);
 	      System.out.println("status: " + status);
 	      return status;
-
+	       */
+				
       } catch (UnknownHostException e) {
 	      // TODO Auto-generated catch block
       	System.err.println("Couldn't find host\n" + e);
 	      e.printStackTrace();
       } catch (IOException e) {
 	      // TODO Auto-generated catch block
-      	System.err.println("Couldn't send a request\n" + e);
+      	System.err.println("Couldn't send a request or read the response\n" + e);
 	      e.printStackTrace();
+			} finally {
+				if(connection != null) {
+					connection.disconnect(); 
       }
+    }
 			return -1;
 		}
 		
