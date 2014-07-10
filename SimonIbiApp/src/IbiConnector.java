@@ -53,10 +53,24 @@ public class IbiConnector
 		 * DialogID 	= Id from the dialog at ibi
 		 */
 		private int modalityId_ = 0;
+		public int getModalityId()
+		{
+			return modalityId_;
+		}
 		private String requestId_ = "";
 		private String dialogId_ = "";
 		
 		private boolean registered_;
+		public boolean getRegistered()
+		{
+			return registered_;
+		}
+		
+		private boolean recognitionRunning_;
+		public boolean getRecognitionRunning()
+		{
+			return recognitionRunning_;
+		}
 		
 		public enum CMD_CODE {
 			//provided Methods from Simon
@@ -109,22 +123,12 @@ public class IbiConnector
 			System.out.println("#### starting Server! ####");
 			try {
 				server_ = HttpServer.create(new InetSocketAddress(8888),0);
-				server_.createContext("/startRecognition", new MyHttpHandler());
-				server_.createContext("/cancelRecognition", new MyHttpHandler());
-				server_.createContext("/getStatus", new MyHttpHandler());
+				server_.createContext("/startRecognition", new MyHttpHandler(this));
+				server_.createContext("/cancelRecognition", new MyHttpHandler(this));
+				server_.createContext("/getStatus", new MyHttpHandler(this));
 				server_.setExecutor(null);
 				server_.start();
 				System.out.println("Server is started");
-				
-//				socket_ = new Socket(ibiHost_, ibiPort_);
-				
-//				System.out.println(socket_.getPort());
-//				System.out.println(socket_.getInetAddress());
-//				System.out.println(socket_.getLocalAddress());
-//				System.out.println(socket_.getLocalPort());
-//				
-//				writer_ = new BufferedWriter(new OutputStreamWriter(socket_.getOutputStream(), "UTF-8"));
-//				reader_ = new BufferedReader(new InputStreamReader(socket_.getInputStream(), "UTF-8"));
 				
 				startGetModalityStatusThread();
 				
@@ -156,24 +160,12 @@ public class IbiConnector
 				System.out.println("sending a request: ");
 				String data = "";
 
-				
-//				System.out.println("socket informations:");
-//				System.out.println("connected?: " + socket_.isConnected() +"\nClosed?: " + socket_.isClosed() + "\nbound?: " + socket_.isBound());
-//	      System.out.println("socketAddress: " + socket_.getInetAddress());
-
-				//just for tests
-				if(path.equals("/startRecognition")) {
-					data = URLEncoder.encode("requestID", "UTF-8") + "=" + URLEncoder.encode("abcd-efgh", "UTF-8") + "&" +
-							URLEncoder.encode("dialogID", "UTF-8") + "=" + URLEncoder.encode("1234", "UTF-8") + "&" +
-							URLEncoder.encode("modalityID", "UTF-8") + "=" + URLEncoder.encode("5", "UTF-8") + "&" +
-							URLEncoder.encode("data", "UTF-8") + "=" + URLEncoder.encode("{\"options\":[\"eins\",\"zwei\"]}", "UTF-8");
-
-				} else if(path.equals("/handleModalityAction")) {
-					System.out.println("#### handleModalityAction! ####\n");
+				if(path.equals("/handleModalityAction")) {
+					System.out.println("\n#### handleModalityAction! ####\n");
 					data = "command=eins";
 					
 				} else if(path.equals("/registerModality")) {
-					System.out.println("#### registerModality! ####\n");
+					System.out.println("\n#### registerModality! ####\n");
 					
 					data = URLEncoder.encode("params", "UTF-8") + "=" + 
 					URLEncoder.encode("{\"name\"", "UTF-8") + 		":" + URLEncoder.encode("\"simonListensClient\"", "UTF-8") + "," +
@@ -206,7 +198,7 @@ public class IbiConnector
 			      wr.close ();
 
 				} else if(path.equals("/getModalityStatus")) {
-					System.out.println("#### getModalityStatus! ####\n\tModalityID: " + modalityId_);
+					System.out.println("\n#### getModalityStatus! ####\n\tModalityID: " + modalityId_);
 					data = URLEncoder.encode("params", "UTF-8") + "=" + URLEncoder.encode("{\"modalityId\"", "UTF-8") + ":" +
 					URLEncoder.encode(Integer.toString(modalityId_) + "}", "UTF-8");
 					
@@ -274,22 +266,21 @@ public class IbiConnector
 	      	
 	      	body = body.replace("\"", "");
 	      	
-	      	System.out.println("body: " + body);
+	      	//System.out.println("body: " + body);
 	      	if(body.contains("status:ok")) {
 	      		bodylist = body.split(",");
 	      		
 	      		for(int i = 0; i< bodylist.length; i++)
 	      		{
 	      			String[] tmp = bodylist[i].split(":");
-	      			System.out.println("part: " + tmp[0]);
+	      			//System.out.println("part: " + tmp[0]);
 	      			if((tmp.length == 2) && (tmp[0].equals("modalityId"))) {
 	      				modalityId_ = Integer.parseInt(tmp[1]);
 	      				System.out.println("new ModalityID is #" + modalityId_);
 	      			}
 	      			
 	      		}
-	      			
-	      		
+
 	      		return CMD_CODE.EVERYTHINGISALLRIGHT.getCode();
 	      	}
 	      	else if(body.contains("status:nok")) {
@@ -303,111 +294,8 @@ public class IbiConnector
 	      	
 	      }
 	      
-	      
-	      
-	      
-	      
-	      
 	      return 0;
 	      
-	      
-	      /*
-	       *  String line = "";
-	      String header = "";
-	      String body = "";
-	      boolean bodyBegin = false;
-	      int bodylength = 0;
-
-	      while (true) {
-	        line = "";
-	        char c = ' ';
-	        while (true){
-	        	System.out.println(reader_.ready());
-						c = (char) reader_.read();
-						System.out.println("c: " + c);
-						if(c != '\n') {
-							line += c;
-							System.out.println(line);
-						}
-						else 
-							break;
-	        }
-	        System.out.println("length: " + line.length());
-	        if(line.contains("Content-Length:") && (line.length() >= 17))
-	        {
-	        	
-	        	System.out.println("found content-length and setting body length");
-	        	String substr = line.substring(16, line.length()-1);
-        		try {
-        			bodylength = Integer.parseInt(substr);
-        		} catch (Exception e) {
-        			System.out.println("something went wrong with content-length");
-        			e.printStackTrace();
-        		}
-	        }
-	        
-//	        System.out.println("bodylength: " + bodylength);
-//	        System.out.println("line: #" + line + "#");
-//	        System.out.println("linelength: " + line.length());
-	        
-	        if (line.length() == 1) {
-	        	System.out.println("found empty line");
-	        	break;
-	        }
-	        header += line;
-	        line = "";
-	     }
-	        
-	      //System.out.println("next line: " + reader.readLine());
-	      
-	      
-	          
-	      System.out.println("start reading bodypart");
-	      if(bodylength != 0)
-	      {
-		      line = "";
-		      body = "";
-		      for(int i = 0; i < bodylength; i++)
-		      {
-		        char c = ' ';
-		        
-		        c = (char) reader_.read();
-		        body += c;
-//		        System.out.println("bodyline: " + line);
-//		        if((c == '\n') || (c == '\r')) {
-//		        	body += line;
-//		        	line = "";
-//		        }
-		      }
-	      }
-	      else
-	      {
-	      	System.out.println("bodylength 0 blalbla ###################\n");
-	      	int maxit = 100;
-	      	char ci;
-	      	body = "";
-	      	while(true) 
-	      	{
-	      		ci = (char) reader_.read();
-	      		maxit--;
-	      		body += ci;
-	      		//System.out.println("body: " + body);
-	      		if(maxit == 0)
-	      			break;
-	      	}
-	      }
-	      
-//	      writer_.close();
-//	      reader_.close(); 
-	      
-	      System.out.println("header: " + header + "\n");
-	      System.out.println("body: " + body + "\n");
-	      
-	      int status = checkInput(path, header, body);
-	      System.out.println("status: " + status);
-	      return status;
-	       */
-				
       } catch (UnknownHostException e) {
 	      // TODO Auto-generated catch block
       	System.err.println("Couldn't find host\n" + e);
@@ -540,10 +428,13 @@ public class IbiConnector
 				    System.out.println("getModalityStatusThread at: " + dateFormat.format(date));
 				    
 				    if(sendRequest("/getModalityStatus", "") == CMD_CODE.REGISTERMODALITY.getCode()) {
-				    	if(sendRequest("/registerModality", "") != CMD_CODE.OKAY.getCode())
+				    	registered_ = false;
+				    	if(sendRequest("/registerModality", "") != CMD_CODE.EVERYTHINGISALLRIGHT.getCode())
 				    			System.out.println("Register failed. Waiting for next getModalityStatus");
+				    	else
+			    			registered_ = true;
 				    }
-			    	System.out.println("next getModalityStatus in about 30secounds!");
+			    	System.out.println("\nnext getModalityStatus in about 30secounds!\n");
 			    	
 				  }
 				}, 5, 30, TimeUnit.SECONDS);
