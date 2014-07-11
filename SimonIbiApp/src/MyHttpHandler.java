@@ -236,10 +236,6 @@ public class MyHttpHandler implements HttpHandler {
 			os.write(response);
 			os.close();
 		}
-			/*
-			 * resp->end("status=\"status\":\"idle\"&"
-            "\"modalityId\"=\"" + QString::number(manager_->getModalityID()).toAscii() + "\"");
-			 */
 
   }
 }
