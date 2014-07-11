@@ -166,9 +166,14 @@ public class IbiConnector
 			System.out.println("#### starting Server! ####");
 			try {
 				server_ = HttpServer.create(new InetSocketAddress(8888),0);
-				server_.createContext("/startRecognition", new MyHttpHandler(this));
-				server_.createContext("/cancelRecognition", new MyHttpHandler(this));
-				server_.createContext("/getStatus", new MyHttpHandler(this));
+				server_.createContext("/startRecognition", new MyHttpHandler(this)).getFilters().add(new ParameterFilter());
+				server_.createContext("/cancelRecognition", new MyHttpHandler(this)).getFilters().add(new ParameterFilter());
+				server_.createContext("/getStatus", new MyHttpHandler(this)).getFilters().add(new ParameterFilter());
+//
+//			server_.createContext("/startRecognition", new MyHttpHandler(this));
+//			server_.createContext("/cancelRecognition", new MyHttpHandler(this));
+//			server_.createContext("/getStatus", new MyHttpHandler(this));
+				
 				server_.setExecutor(null);
 				server_.start();
 				System.out.println("Server is started");

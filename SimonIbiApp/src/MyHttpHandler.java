@@ -3,6 +3,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Map;
 
 import sun.reflect.ReflectionFactory.GetReflectionFactoryAction;
 
@@ -20,17 +21,31 @@ public class MyHttpHandler implements HttpHandler {
 	
 	public void handle(HttpExchange exchange) throws IOException {
 		
+//		System.out.println("protocol: " + exchange.getProtocol());
+//		System.out.println("requestMethod: " + exchange.getRequestMethod());
+//		System.out.println("http context: " + exchange.getHttpContext().toString());
+//		System.out.println("response body: " + exchange.getResponseHeaders());
+//		System.out.println("response body: " + exchange.getResponseBody());
+//		System.out.println("response code: " + exchange.getResponseCode());
+//		System.out.println("protocol: " + exchange.getProtocol());
+//		
+
 		URI request = exchange.getRequestURI();
 		
-		if(ibicon_.getRegistered() == true) {
-			
-///////////
-			if(request.getPath().equals("/startRecognition")) {
 		
-				String query = request.getQuery().replace("\"", "");
+		if(ibicon_.getRegistered() == true) {
+
+			Map<String, Object> hugo = (Map<String, Object>)exchange.getAttribute("parameters");
+			String query = new String(Arrays.toString(hugo.entrySet().toArray()));
+			query = query.substring(1, query.length() -1);
+			
+			if(request.getPath().equals("/startRecognition")) {
+				System.out.println("startrecognition found");
+	
+//				String query = request.getQuery().replace("\"", "");
 				System.out.println("StartRecognition found!\nQuerydata: " + query + "\n");
 		
-				String[] queryparts = query.split("&");
+				String[] queryparts = query.replace("\"", "").split(", ");
 				
 				boolean gotData = false;
 				boolean gotReqId = false;
@@ -120,13 +135,14 @@ public class MyHttpHandler implements HttpHandler {
 
 			} else if(request.getPath().equals("/cancelRecognition")) {
 		
-				String query = request.getQuery();
+//				String query = request.getQuery();
+				
 				System.out.println("CancelRecognition found!\nQuerydata: " + query + "\n");
 				if(ibicon_.getRecognitionRunning()) {
 						
 					//requestId=c4d5aa42-3e93-4f1e-9d5d-20dc84f93e2e&dialogId=5
 					
-					String[] queryparts = query.split("&");
+					String[] queryparts = query.replace("\"", "").split(", ");
 					
 					boolean gotReqId = false;
 					boolean gotDiaId = false;
