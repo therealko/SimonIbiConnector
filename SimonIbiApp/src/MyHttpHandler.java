@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.util.Arrays;
 
 import sun.reflect.ReflectionFactory.GetReflectionFactoryAction;
 
@@ -111,6 +112,11 @@ public class MyHttpHandler implements HttpHandler {
 					os.close();
 
 				}
+				//System.out.println("sending test handleModaliyAction");
+				/*
+				 * Testcase
+				 */
+				//System.out.println("found keyword? " + ibicon_.containsKeyword("eins"));
 
 			} else if(request.getPath().equals("/cancelRecognition")) {
 		
@@ -185,6 +191,8 @@ public class MyHttpHandler implements HttpHandler {
 		
 				byte[] response;
 				System.out.println("getStatus found!");
+				System.out.println("current data:\n\trequestId: " + ibicon_.getRequestId() + "\n\tdialogId: " + 
+						ibicon_.getDialogId() + "\n\tmodalityId: " + ibicon_.getModalityId() + "\n\tdata: " + Arrays.asList(ibicon_.getData()) + "\n");
 				
 					if(ibicon_.getRecognitionRunning())
 						response = ("status=\"status\":\"processing\"&\"modalityId\"=" + ibicon_.getModalityId()).getBytes();

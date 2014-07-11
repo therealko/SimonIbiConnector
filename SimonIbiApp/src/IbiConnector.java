@@ -204,8 +204,48 @@ public class IbiConnector
 				String data = "";
 
 				if(path.equals("/handleModalityAction")) {
-					System.out.println("\n#### handleModalityAction! ####\n");
-					data = "command=eins";
+					System.out.println("\n#### handleModalityAction! ####\n\tkeyword: " + parameters);
+					
+					
+					data = URLEncoder.encode("data", "UTF-8") + "=" + 
+					
+						URLEncoder.encode("{\"action\"", "UTF-8") + 		":" + URLEncoder.encode("\"" + parameters + "\"", "UTF-8") + "," +
+						URLEncoder.encode("\"description\"", "UTF-8") + ":" + URLEncoder.encode("\"vocal recognition finished successfully\"", "UTF-8") + "," +
+						URLEncoder.encode("\"direction\"", "UTF-8") + ":" + URLEncoder.encode("\"input\"", "UTF-8") + "," +
+						URLEncoder.encode("\"type\"", "UTF-8") + 			":" + URLEncoder.encode("\"vocal\"", "UTF-8") + "," + 
+						URLEncoder.encode("\"confidence\"", "UTF-8") + 			":" + URLEncoder.encode("1.00}", "UTF-8");
+					
+					data += "&" + URLEncoder.encode("modalityId", "UTF-8") + "=" + 	
+							URLEncoder.encode(Integer.toString(modalityId_) + "}", "UTF-8");
+					
+					data += "&" + URLEncoder.encode("dialogId", "UTF-8") + "=" + 	
+							URLEncoder.encode(dialogId_ + "}", "UTF-8");
+					
+					data += "&" + URLEncoder.encode("requestId", "UTF-8") + "=" + 	
+							URLEncoder.encode(requestId_ + "}", "UTF-8");
+
+					
+					 url = new URL("http://" + ibiHost_ + ":" + ibiPort_ + path );
+				    System.out.println("url: " + url.toString());
+			      connection = (HttpURLConnection)url.openConnection();
+			      connection.setRequestMethod("POST");
+			      connection.setRequestProperty("Content-Type", 
+			           "application/x-www-form-urlencoded");
+						
+			      connection.setRequestProperty("Content-Length", "" + 
+			      		Integer.toString(data.getBytes().length));
+			      connection.setRequestProperty("Content-Language", "en-US");  
+						
+			      connection.setUseCaches (false);
+			      connection.setDoInput(true);
+			      connection.setDoOutput(true);
+		
+			      //Send request
+			      DataOutputStream wr = new DataOutputStream (
+			                  connection.getOutputStream ());
+			      wr.writeBytes(data);
+			      wr.flush ();
+			      wr.close ();
 					
 				} else if(path.equals("/registerModality")) {
 					System.out.println("\n#### registerModality! ####\n");
@@ -335,6 +375,14 @@ public class IbiConnector
 	      	}
 
 	      	
+	      } else if(path == "/handleModalityAction") {
+	      	System.out.println("found a handleModalityAction Response");
+
+	      	setRecognitionRunning(false);
+	      	setRequestId("");
+	      	setDialogId("");
+	      	setData(new String[0]);
+	      	return CMD_CODE.OKAY.getCode();
 	      }
 	      
 	      return 0;
@@ -355,100 +403,14 @@ public class IbiConnector
 			return -1;
 		}
 		
-		public int checkInput(String path, String header, String body)
-    {
-			List<String> headerlist = Arrays.asList(header.split("\n|\r|,|[|]"));
-      //System.out.println("headerlist: " + headerlist);
-      
-      List<String> bodylist = Arrays.asList(body.split("\n|,"));
-      System.out.println("bodylist: " + bodylist);
-      
-      
-      if(path.equals("/getModalityStatus")) {
-      	
-      	Iterator itr= headerlist.iterator();
-
-      	boolean okay = false;
-      	while(itr.hasNext()) {
-      		String row = (String) itr.next();
-      	  //System.out.println("checking headerrow: " + row);
-      		if(row.equals("HTTP/1.1 200 OK")) {
-      			System.out.println("HTTP STATUS 200 OKAY");
-      			okay = true;
-      		}
-      	}
-      	
-      	itr = bodylist.iterator();
-      	while(itr.hasNext() && okay) {
-      		String row = (String) itr.next();
-      	  //System.out.println("bodylist: " + row);
-      	  
-      	  row = row.replace("\"", "");
-      	  //System.out.println("checking bodyrow: " + row);
-    	  	if(row.equals("status:ok"))
-    	  	{
-    	  		System.out.println("ModalityId is correct!");
-    	  		return CMD_CODE.OKAY.getCode();
-    	  		
-    	  	} else if(row.equals("status:nok")) {
-    	  		System.out.println("ModalityId is out of date, try new registerModalityID!s");
-    	  		return CMD_CODE.REGISTERMODALITY.getCode();
-    	  	}
-    	  	else
-    	  		System.out.println("something wrong with reading params from body!");
-      	}
-      	
-      	return CMD_CODE.BADREQUEST.getCode();
-      	
-      } else if(path.equals("/registerModality")) {
-      	Iterator itr= headerlist.iterator();
-
-      	boolean okay = false;
-      	while(itr.hasNext()) {
-      		String row = (String) itr.next();
-      	  //System.out.println("list: " + row);
-
-      		if(row.equals("HTTP/1.1 200 OK")) {
-      			System.out.println("HTTP STATUS 200 OKAY");
-      			okay = true;
-      		}
-      	}
-      	
-      	itr = bodylist.iterator();
-      	
-      	while(itr.hasNext() && okay) {
-      		String row = (String) itr.next();
-      	  System.out.println("bodylist: " + row);
-      	  
-      	  row = row.replace("\"", "");
-//    	  	if(row.contains("status") && (row.contains("ok")) && row.equals("status:ok"))
-    	  	if(row.equals("status:ok"))
-      	  {
-    	  		System.out.println("ModalityId is correct!");
-    	  		return CMD_CODE.OKAY.getCode();
-    	  		
-//    	  	} else if(row.contains("status") && (row.contains("nok")) && row.equals("status:nok")) {
-      	  } else if(row.equals("status:nok")) {
-    	  		System.out.println("ModalityId is out of date, try new registerModalityID!s");
-    	  		return CMD_CODE.REGISTERMODALITY.getCode();
-    	  	}
-    	  	else
-    	  		System.out.println("something wrong with reading params from body!");
-      	}
-      	
-      	
-      } else if(path.equals("/handleModalityAction")) {
-      	
-      }
-      
-    	return 0;
-    }
 		
 		public boolean containsKeyword(String keyword)
 		{
 			//TODO
-			if(keywords.contains(keyword)){
-				if(sendRequest("/handeModalityAction", keyword) == CMD_CODE.OKAY.getCode())
+
+			if(Arrays.asList(data_).contains(keyword)) {
+				System.out.println("found a valid keyword");
+				if(sendRequest("/handleModalityAction", keyword) == CMD_CODE.OKAY.getCode())
 					return true;
 			}
 			
