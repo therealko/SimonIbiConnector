@@ -57,8 +57,45 @@ public class IbiConnector
 		{
 			return modalityId_;
 		}
+		public void setModalityId(int modId)
+		{
+			modalityId_ = modId;
+		}
+		
 		private String requestId_ = "";
+		public String getRequestId()
+		{
+			return requestId_;
+		}
+		public void setRequestId(String reqId)
+		{
+			requestId_ = reqId;
+		}
+		
+		
 		private String dialogId_ = "";
+		public String getDialogId()
+		{
+			return dialogId_;
+		}
+		public void setDialogId(String diaId)
+		{
+			dialogId_ = diaId;
+		}
+		
+		private String[] data_ = {};
+		public String[] getData()
+		{
+			return data_;
+		}
+		public void setData(String[] data)
+		{
+			System.out.println("setting new commands:");
+			for(int i = 0; i< data.length; i++) 
+				System.out.println("#" + i + ": " + data[i]);
+			System.out.println("\n");
+			data_ = data;
+		}
 		
 		private boolean registered_;
 		public boolean getRegistered()
@@ -66,10 +103,16 @@ public class IbiConnector
 			return registered_;
 		}
 		
+		
 		private boolean recognitionRunning_;
 		public boolean getRecognitionRunning()
 		{
 			return recognitionRunning_;
+		}
+		
+		public void setRecognitionRunning(boolean value)
+		{
+			recognitionRunning_ = value;
 		}
 		
 		public enum CMD_CODE {
